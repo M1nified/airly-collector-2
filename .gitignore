@@ -1,3 +1,6 @@
+# firebase keys
+airly-collector-*.json
+
 # Logs
 logs
 *.log

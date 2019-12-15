@@ -4,10 +4,16 @@
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "outDir": "lib",
+    // "outFile": "lib/index.js",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017"
+    "target": "es2017",
   },
+  "references": [
+    {
+      "path": "../shared",
+    }
+  ],
   "compileOnSave": true,
   "include": [
     "src"

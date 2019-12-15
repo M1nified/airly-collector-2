@@ -18,5 +18,13 @@
         "destination": "/index.html"
       }
     ]
+  },
+  "emulators": {
+    "hosting": {
+      "port": 3080
+    },
+    "functions":{
+      "port": 3081
+    }
   }
 }
