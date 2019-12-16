@@ -1,10 +1,11 @@
 import React, { Component } from "react";
 import firebase from "./../../firebase";
-import TheAppBar from './../../components/TheAppBar/TheAppBar'
+import TheAppBar from '../../components/theAppBar/TheAppBar'
 import { InstallationFS } from './../../../../shared/lib/firestore/InstallationFS'
 import { firestore } from "firebase";
 import { Fab, SvgIcon, Tooltip, Dialog, DialogTitle, DialogContent, DialogContentText, TextField, DialogActions, Button } from "@material-ui/core";
 import { mdiPlus } from "@mdi/js";
+import { InstallationsTable } from "../../components/installationsTable/InstallationsTable";
 
 type HomeViewState = {
     user: firebase.User | null,
@@ -51,12 +52,7 @@ export class HomeView extends Component<HomeViewProps, HomeViewState>{
     render() {
         return <>
             <TheAppBar />
-            {this.state.installations.map((installation, idx) => (
-                <div key={idx}>
-                    {installation.installationId}
-                    {installation.info?.address.street}
-                </div>
-            ))}
+            <InstallationsTable />
             <Tooltip
                 title="Add installation to your list"
             >

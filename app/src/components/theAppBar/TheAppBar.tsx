@@ -1,7 +1,7 @@
-import { AppBar, Badge, IconButton, InputBase, Toolbar, Typography, SvgIcon, Menu, MenuItem, Button, makeStyles, withStyles, Avatar } from "@material-ui/core";
-import React, { Component, ClassAttributes } from "react";
-import firebase from "./../../firebase";
-import { mdiMenu, mdiMagnify, mdiFaceProfile } from '@mdi/js'
+import { AppBar, Avatar, Button, IconButton, Menu, MenuItem, SvgIcon, Toolbar, Typography, withStyles } from "@material-ui/core";
+import { mdiMenu } from '@mdi/js';
+import React, { Component } from "react";
+import firebase from "../../firebase";
 
 const _styles = {
     title: {
@@ -73,7 +73,7 @@ class TheAppBar extends Component<Readonly<TheAppBarProps>, TheAppBarState>{
                             </IconButton>
                             <Menu
                                 id="menu-appbar"
-                                // anchorEl={anchorEl}
+                                // anchorEl={(x) => x}
                                 anchorOrigin={{
                                     vertical: 'top',
                                     horizontal: 'right',
@@ -116,7 +116,7 @@ class TheAppBar extends Component<Readonly<TheAppBarProps>, TheAppBarState>{
                     .get()
                 if (u.exists) {
                     await u.ref.update(user.toJSON());
-                }else{
+                } else {
                     await u.ref.set(user.toJSON());
                 }
             }

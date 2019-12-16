@@ -17,11 +17,11 @@ const app = admin.initializeApp();
 export const updateMeasurements = functions
     .region('europe-west2')
     .pubsub
-    .schedule('every 1 hour')
+    .schedule('0 * * * *')
     .onRun(async (context) => {
         console.log('start');
         const now = new Date();
-        const zeroDate = new Date(Date.now() - 3600000);
+        const zeroDate = new Date(Date.now() - 43200000); // every 12 hours
         const [installationsToUpdateQS1, installationsToUpdateQS2] = await Promise.all([
             admin.firestore()
                 .collection('installations')
