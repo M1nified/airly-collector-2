@@ -1,27 +1,27 @@
+import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@material-ui/core";
 import React, { PureComponent } from "react";
-import { FixedSizeList } from 'react-window';
-import InfiniteLoader from 'react-window-infinite-loader';
-import TheAppBar from "../../components/theAppBar/TheAppBar";
+import ReactDOM from 'react-dom';
 import { useParams } from "react-router-dom";
-import firebase from "./../../firebase";
 import { AveragedValues } from "../../../../shared/src/models/AirlyApiModels";
-import { TableRow, TableCell, TableContainer, Paper, Table, TableHead, TableBody } from "@material-ui/core";
+import TheAppBar from "../../components/theAppBar/TheAppBar";
+import firebase from "./../../firebase";
 
 
 const LOADING = 1;
 const LOADED = 2;
 
-let initComplete = false;
-
 let itemStatusMap: any = {};
-let itemCount = 0;
 let docRefs: firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[] = [];
 let historyRecords: AveragedValues[] = [];
 
-class Row extends PureComponent<any> {
+type RowProps = {
+    index: number,
+    style: any,
+}
+
+class Row extends PureComponent<RowProps> {
     render() {
         const { index, style } = this.props;
-        console.log(index, 'render')
         let elem, content;
         if (itemStatusMap[index] === LOADED) {
             elem = historyRecords[index];
@@ -39,8 +39,8 @@ class Row extends PureComponent<any> {
                 </TableCell>
             </>
         } else {
-            content = <TableCell>
-                "loading..."
+            content = <TableCell colSpan={3}>
+                "Loading..."
             </TableCell>
         }
         return (
@@ -51,24 +51,146 @@ class Row extends PureComponent<any> {
     }
 }
 
+type RowsProps = {
+    elementsCount: number,
+    isItemLoaded(index: number): boolean,
+    loadMoreItems(fromIndex: number, tillIndex: number): Promise<any>,
+    onRowHeightChange(rowHeight: number): any,
+    scrollTop: number,
+}
+
+type RowsState = {
+    renderCount: number,
+    renderOffset: number,
+    iteration: number,
+    bodyId: string,
+    rowHeight: number,
+}
+
+class Rows extends PureComponent<RowsProps, RowsState>{
+
+    state: RowsState = {
+        renderCount: 1,
+        renderOffset: 0,
+        iteration: 0,
+        bodyId: Math.floor(Math.random() * 10000000).toString(),
+        rowHeight: 1,
+    }
+
+    async componentDidMount() {
+        const { renderCount, renderOffset } = this.state;
+
+        const { renderCountEnsured, rowHeight } = (() => {
+
+            let div = ReactDOM.findDOMNode(this);
+            if (div instanceof Element) {
+                const fc = div.children?.[0]?.clientHeight ?? undefined;
+                if (fc) {
+                    while (div && div.tagName.toLowerCase() !== 'div')
+                        div = div.parentElement;
+                    if (div) {
+                        const count = Math.floor(div.clientHeight / fc);
+                        return {
+                            renderCountEnsured: count - 1,
+                            rowHeight: fc,
+                        };
+                    }
+                }
+            }
+        })()
+            || {
+            renderCountEnsured: renderCount,
+            rowHeight: 1,
+        };
+
+        const [from, till] = [0, renderCountEnsured].map(x => x + renderOffset);
+        await this.props.loadMoreItems(from, till);
+        this.setState({
+            renderCount: renderCountEnsured,
+            rowHeight,
+        })
+        rowHeight && this.props.onRowHeightChange(rowHeight);
+        this.incIter();
+    }
+
+    async componentDidUpdate(prevProps: RowsProps) {
+        if (prevProps.scrollTop !== this.props.scrollTop) {
+            const { rowHeight, renderCount } = this.state;
+            const { elementsCount, scrollTop } = this.props;
+            const floatIdx = scrollTop / rowHeight;
+            const renderOffset = (() => {
+                const given = Math.floor(floatIdx);
+                return Math.min(given, elementsCount - renderCount);
+            })();
+            // this.props.onTableTopChange(rowHeight * (floatIdx - Math.floor(floatIdx)))
+            const [from, till] = [0, renderCount].map(x => x + renderOffset);
+            this.props.loadMoreItems(from, till);
+            this.setState({
+                renderOffset,
+            })
+        }
+    }
+
+    render() {
+        const { renderOffset, renderCount, iteration, bodyId } = this.state;
+        return (
+            <>
+                <TableBody
+                    onScroll={this.handleScroll}
+                    key={iteration}
+                    id={bodyId}
+                    style={{}}
+                >
+                    {
+                        Array(renderCount).fill(undefined).map((x, idx) => {
+                            const index = idx + renderOffset;
+                            return <Row key={index} index={index} style={null} />
+                        })
+                    }
+                </TableBody>
+            </>
+        )
+    }
+
+    handleScroll = (evt: any) => {
+    }
+
+    incIter = () => {
+        const { iteration } = this.state;
+        this.setState({
+            iteration: (iteration + 1) % 1000,
+        })
+    }
+}
+
 type InstallationsTableProps = {
     installationId: number,
 }
 type InstallationsTableState = {
     initComplete: boolean,
-    height: number,
     itemCount: number,
+    containerOffsetTop: number,
+    rowHeight: number,
+    scrollTop: number,
 }
 
 class InstallationsTable extends PureComponent<InstallationsTableProps, InstallationsTableState>{
 
     state: InstallationsTableState = {
         initComplete: false,
-        height: 150,
         itemCount: 0,
+        containerOffsetTop: 0,
+        rowHeight: 1,
+        scrollTop: 0,
     }
 
     async componentDidMount() {
+
+        const thisElem = ReactDOM.findDOMNode(this);
+        const containerOffsetTop = thisElem instanceof Element ? (thisElem as HTMLElement).offsetTop : 0;
+        this.setState({
+            containerOffsetTop,
+        });
 
         const init = async () => {
             const { installationId } = this.props;
@@ -76,9 +198,9 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
                 .doc(`installations/${installationId}`)
                 .collection('history')
                 .get()
-            itemCount = qs.size;
+            const itemCount = qs.size;
             docRefs = qs.docs;
-            initComplete = true;
+            const initComplete = true;
             this.setState({
                 initComplete,
                 itemCount,
@@ -109,45 +231,74 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
     }
 
     render() {
+        const { containerOffsetTop, rowHeight, itemCount } = this.state;
+
+        const thStyle: React.CSSProperties = {
+            position: 'sticky',
+            top: '0px',
+            background: '#fff',
+        }
+
         return <>
-            <TableContainer component={Paper} id="tableRoot">
-                {/* <Table>
+            <TableContainer component={Paper} id="tableRoot"
+                style={{
+                    height: `calc( 100vh - ${containerOffsetTop}px )`,
+                    overflow: 'auto',
+                    position: 'relative',
+                }}
+                onScroll={this.handleScroll}
+            >
+                <Table style={{
+                    position: 'sticky',
+                    top: '0px',
+                }}>
                     <TableHead>
                         <TableRow>
-                            <TableCell>
+                            <TableCell style={thStyle}>
+                            </TableCell>
+                            <TableCell style={thStyle}>
                                 From
                             </TableCell>
-                            <TableCell>
+                            <TableCell style={thStyle}>
                                 Till
                             </TableCell>
                         </TableRow>
-                    </TableHead> */}
-
-                {
-                    this.state.initComplete &&
-                    <InfiniteLoader
-                        isItemLoaded={this.isItemLoaded}
-                        itemCount={this.state.itemCount}
-                        loadMoreItems={this.loadMoreItems}
-
-                    >
-                        {({ onItemsRendered, ref }) => (
-                            <FixedSizeList
-                                height={this.state.height}
-                                itemCount={this.state.itemCount}
-                                itemSize={45}
-                                onItemsRendered={onItemsRendered}
-                                ref={ref}
-                                width="100%"
-                            >
-                                {Row}
-                            </FixedSizeList>
-                        )}
-                    </InfiniteLoader>
-                }
-                {/* </Table> */}
+                    </TableHead>
+                    {
+                        this.state.initComplete &&
+                        (
+                            <Rows
+                                elementsCount={itemCount}
+                                isItemLoaded={this.isItemLoaded}
+                                loadMoreItems={this.loadMoreItems}
+                                onRowHeightChange={this.handleRowHeightChange}
+                                scrollTop={this.state.scrollTop}
+                            />
+                        )
+                    }
+                </Table>
+                <div style={{
+                    height: `calc( ${rowHeight * (itemCount + 2)}px - 100vh + ${containerOffsetTop}px )`,
+                }}>
+                    &nbsp;
+                </div>
             </TableContainer>
         </>
+    }
+
+    handleScroll = (evt: React.UIEvent) => {
+        const top = (evt?.nativeEvent?.target as any)?.scrollTop;
+        if (typeof top === 'number') {
+            this.setState({
+                scrollTop: top,
+            })
+        }
+    }
+
+    handleRowHeightChange = (rowHeight: number) => {
+        this.setState({
+            rowHeight,
+        })
     }
 
     isItemLoaded = (index: number) => !!itemStatusMap[index];

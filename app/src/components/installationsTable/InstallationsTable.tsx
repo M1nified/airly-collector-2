@@ -1,8 +1,8 @@
+import { Checkbox, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@material-ui/core";
 import React, { Component } from "react";
+import { Redirect } from "react-router-dom";
 import { InstallationFS } from "../../../../shared/src/firestore/InstallationFS";
 import firebase from './../../firebase';
-import { Paper, Toolbar, TableContainer, Table, TableHead, TableBody, TableRow, TableCell, Checkbox } from "@material-ui/core";
-import { Redirect } from "react-router-dom";
 
 type InstallationsTableState = {
     installations: InstallationFS[],
