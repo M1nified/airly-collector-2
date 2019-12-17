@@ -76,11 +76,13 @@ export class InstallationsTable extends Component<Readonly<InstallationsTablePro
                     </TableCell>
                     <TableCell
                         onClick={() => this.handleCellClick(installation)}
+                        style={{ cursor: 'pointer' }}
                     >
                         {installation.info?.id}
                     </TableCell>
                     <TableCell
                         onClick={() => this.handleCellClick(installation)}
+                        style={{ cursor: 'pointer' }}
                     >
                         {installation.info?.address.city}, {installation.info?.address.street}&nbsp;{installation.info?.address.number}
                     </TableCell>

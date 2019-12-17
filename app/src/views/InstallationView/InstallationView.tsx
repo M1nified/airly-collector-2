@@ -1,10 +1,35 @@
-import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@material-ui/core";
+import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Icon, SvgIcon, Grid, GridList, Tooltip } from "@material-ui/core";
 import React, { PureComponent } from "react";
 import ReactDOM from 'react-dom';
 import { useParams } from "react-router-dom";
-import { AveragedValues } from "../../../../shared/src/models/AirlyApiModels";
+import { AveragedValues, Index, Standard, Value } from "../../../../shared/src/models/AirlyApiModels";
 import TheAppBar from "../../components/theAppBar/TheAppBar";
 import firebase from "./../../firebase";
+import { mdiCheckboxBlankCircle } from "@mdi/js";
+
+const INDEXES_TO_DISPLAY = [
+    { name: "AIRLY_CAQI" },
+];
+const STANDARDS_TO_DISPLAY = [
+    { name: "WHO", pollutant: "PM25" },
+    { name: "WHO", pollutant: "PM10" },
+];
+const VALUES_TO_DISPLAY = [
+    { name: "PM1" },
+    { name: "PM25" },
+    { name: "PM10" },
+    { name: "PRESSURE" },
+    { name: "HUMIDITY" },
+    { name: "TEMPERATURE" },
+];
+
+const matchPatternToDisplay = (challengers: any[]) => (candidate: any): boolean => challengers.some(chal => Object.keys(chal).every(key => candidate[key] === chal[key]));
+
+const indexesToDisplay = (indexes: Index[]): Index[] => indexes.filter(matchPatternToDisplay(INDEXES_TO_DISPLAY));
+
+const standardsToDisplay = (standards: Standard[]): Standard[] => standards.filter(matchPatternToDisplay(STANDARDS_TO_DISPLAY));
+
+const valuesToDisplay = (values: Value[]): Value[] => values.filter(matchPatternToDisplay(VALUES_TO_DISPLAY));
 
 
 const LOADING = 1;
@@ -27,16 +52,61 @@ class Row extends PureComponent<RowProps> {
             elem = historyRecords[index];
         }
         if (elem) {
+
+            const indexes = elem.indexes && elem.indexes.length >= INDEXES_TO_DISPLAY.length
+                ? indexesToDisplay(elem.indexes)
+                : Array(INDEXES_TO_DISPLAY.length).fill({}) as Index[];
+
+            const standards = elem.standards && elem.standards.length >= STANDARDS_TO_DISPLAY.length
+                ? standardsToDisplay(elem.standards)
+                : Array(STANDARDS_TO_DISPLAY.length).fill({}) as Standard[];
+            console.log(standards)
+
+            const values = elem.values && elem.values.length >= VALUES_TO_DISPLAY.length
+                ? valuesToDisplay(elem.values)
+                : Array(VALUES_TO_DISPLAY.length).fill({}) as Value[];
+
             content = <>
+                {
+                    indexes.map((index, key) => {
+                        return <TableCell key={key}>
+                            <Tooltip title={`${index.name}`}>
+                                <SvgIcon
+                                    style={{ color: index.color ?? "" }}
+                                ><path d={mdiCheckboxBlankCircle} /></SvgIcon>
+                            </Tooltip>
+                        </TableCell>
+                    })
+                }
                 <TableCell>
-                    {index}
+                    {elem.fromDateTime}
                 </TableCell>
                 <TableCell>
-                    {elem?.fromDateTime}
+                    {elem.tillDateTime}
                 </TableCell>
-                <TableCell>
-                    {elem?.tillDateTime}
-                </TableCell>
+                {
+                    indexes.map((index, key) => {
+                        return <Tooltip title={index.level}>
+                            <TableCell key={key}>
+                                {index.value}
+                            </TableCell>
+                        </Tooltip>
+                    })
+                }
+                {
+                    standards.map((standard, key) => {
+                        return <TableCell key={key}>
+                            {standard.percent}/{standard.limit}
+                        </TableCell>
+                    })
+                }
+                {
+                    values.map((value, key) => {
+                        return <TableCell key={key}>
+                            {value.value}
+                        </TableCell>
+                    })
+                }
             </>
         } else {
             content = <TableCell colSpan={3}>
@@ -184,6 +254,9 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
         scrollTop: 0,
     }
 
+    unsubAuthStateChanged?: firebase.Unsubscribe;
+    unsubHistoryOnSnapshot?: firebase.Unsubscribe;
+
     async componentDidMount() {
 
         const thisElem = ReactDOM.findDOMNode(this);
@@ -197,6 +270,7 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
             const qs = await firebase.firestore()
                 .doc(`installations/${installationId}`)
                 .collection('history')
+                .orderBy('fromDateTime', 'desc')
                 .get()
             const itemCount = qs.size;
             docRefs = qs.docs;
@@ -205,12 +279,18 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
                 initComplete,
                 itemCount,
             })
-            firebase.firestore()
-                .doc(`installations/${installationId}`)
-                .collection('history')
-                .onSnapshot(() => {
-                    init();
-                })
+            // this.unsubHistoryOnSnapshot = firebase.firestore()
+            //     .doc(`installations/${installationId}`)
+            //     .collection('history')
+            //     .onSnapshot({
+            //         next: (snap) => {
+            //             console.log(snap)
+            //             init();
+            //         },
+            //         error: (err) => {
+
+            //         }
+            //     })
         }
 
         const user = firebase.auth().currentUser;
@@ -218,7 +298,7 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
         if (user) {
             await init();
         } else {
-            firebase.auth().onAuthStateChanged(user => {
+            this.unsubAuthStateChanged = firebase.auth().onAuthStateChanged(user => {
                 if (user && !this.state.initComplete) {
                     init();
                 } else if (!user) {
@@ -227,7 +307,11 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
             })
         }
 
+    }
 
+    componentWillUnmount() {
+        this.unsubAuthStateChanged?.call(this);
+        this.unsubHistoryOnSnapshot?.call(this);
     }
 
     render() {
@@ -262,6 +346,21 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
                             <TableCell style={thStyle}>
                                 Till
                             </TableCell>
+                            {
+                                INDEXES_TO_DISPLAY.map((index, key) => <TableCell key={key}>
+                                    {index.name}
+                                </TableCell>)
+                            }
+                            {
+                                STANDARDS_TO_DISPLAY.map((standard, key) => <TableCell key={key}>
+                                    {standard.pollutant}
+                                </TableCell>)
+                            }
+                            {
+                                VALUES_TO_DISPLAY.map((value, key) => <TableCell key={key}>
+                                    {value.name}
+                                </TableCell>)
+                            }
                         </TableRow>
                     </TableHead>
                     {
@@ -331,7 +430,9 @@ export function InstallationView() {
 
     return (
         <>
-            <TheAppBar />
+            <TheAppBar
+                goBackTo="/browse"
+            />
             <InstallationsTable
                 installationId={installationId}
             />

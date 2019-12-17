@@ -1,7 +1,9 @@
-import { AppBar, Avatar, Button, IconButton, Menu, MenuItem, SvgIcon, Toolbar, Typography, withStyles } from "@material-ui/core";
-import { mdiMenu } from '@mdi/js';
+import { AppBar, Avatar, Button, IconButton, Menu, MenuItem, SvgIcon, Toolbar, Typography, withStyles, Tooltip } from "@material-ui/core";
+import { mdiMenu, mdiArrowLeft } from '@mdi/js';
 import React, { Component } from "react";
 import firebase from "../../firebase";
+import { Link } from "react-router-dom";
+import ReactDOM from "react-dom";
 
 const _styles = {
     title: {
@@ -18,6 +20,7 @@ type TheAppBarState = {
 
 type TheAppBarProps = {
     classes: any,
+    goBackTo?: string,
 }
 
 class TheAppBar extends Component<Readonly<TheAppBarProps>, TheAppBarState>{
@@ -43,17 +46,31 @@ class TheAppBar extends Component<Readonly<TheAppBarProps>, TheAppBarState>{
     }
 
     render() {
-        const { classes } = this.props;
+        const { classes, goBackTo } = this.props;
         return <>
             <AppBar position="static">
                 <Toolbar>
-                    <IconButton
-                        edge="start"
-                        color="inherit"
-                        aria-label="open drawer"
-                    >
-                        <SvgIcon><path d={mdiMenu} /></SvgIcon>
-                    </IconButton>
+                    {
+                        goBackTo
+                            ? <Tooltip title="Go back">
+                                <Link to={goBackTo} style={{ color: 'inherit' }}>
+                                    <IconButton
+                                        edge="start"
+                                        color="inherit"
+                                    // aria-label="open drawer"
+                                    >
+                                        <SvgIcon><path d={mdiArrowLeft} /></SvgIcon>
+                                    </IconButton>
+                                </Link>
+                            </Tooltip>
+                            : <IconButton
+                                edge="start"
+                                color="inherit"
+                                disabled
+                            >
+                                <SvgIcon><path d={mdiArrowLeft} /></SvgIcon>
+                            </IconButton>
+                    }
                     <Typography variant="h6" noWrap className={classes.title}>
                         Airly Collector
                     </Typography>
@@ -73,7 +90,7 @@ class TheAppBar extends Component<Readonly<TheAppBarProps>, TheAppBarState>{
                             </IconButton>
                             <Menu
                                 id="menu-appbar"
-                                // anchorEl={(x) => x}
+                                anchorEl={(x) => ReactDOM.findDOMNode(this) as Element}
                                 anchorOrigin={{
                                     vertical: 'top',
                                     horizontal: 'right',
