@@ -6,7 +6,6 @@ import btnNormal from './images/btn_google_signin_light_normal_web.png';
 import btnPressed from './images/btn_google_signin_light_pressed_web.png';
 
 type SignInWithGoogleButtonProps = {
-    onUserSignedIn?(): any,
 }
 
 const useStyles = makeStyles({
@@ -27,11 +26,10 @@ export function SignInWithGoogleButton(props: SignInWithGoogleButtonProps) {
     const classes = useStyles();
     const handleOnClick = async () => {
         const provider = new firebaseApp.auth.GoogleAuthProvider();
-        const credential = await firebaseApp.auth().signInWithRedirect(
+        await firebaseApp.auth().signInWithRedirect(
             provider
         )
-        typeof props.onUserSignedIn === 'function' && props.onUserSignedIn();
-        return credential;
+        return;
     }
     return <>
         <ButtonBase
