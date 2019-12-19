@@ -1,11 +1,11 @@
-import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Icon, SvgIcon, Grid, GridList, Tooltip } from "@material-ui/core";
+import { Paper, SvgIcon, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip } from "@material-ui/core";
+import { mdiCheckboxBlankCircle } from "@mdi/js";
 import React, { PureComponent } from "react";
 import ReactDOM from 'react-dom';
 import { useParams } from "react-router-dom";
 import { AveragedValues, Index, Standard, Value } from "../../../../shared/src/models/AirlyApiModels";
 import TheAppBar from "../../components/theAppBar/TheAppBar";
-import firebase from "./../../firebase";
-import { mdiCheckboxBlankCircle } from "@mdi/js";
+import firebaseApp from "../../firebase/firebase";
 
 const INDEXES_TO_DISPLAY = [
     { name: "AIRLY_CAQI" },
@@ -36,7 +36,7 @@ const LOADING = 1;
 const LOADED = 2;
 
 let itemStatusMap: any = {};
-let docRefs: firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData>[] = [];
+let docRefs: firebaseApp.firestore.QueryDocumentSnapshot<firebaseApp.firestore.DocumentData>[] = [];
 let historyRecords: AveragedValues[] = [];
 
 type RowProps = {
@@ -60,7 +60,6 @@ class Row extends PureComponent<RowProps> {
             const standards = elem.standards && elem.standards.length >= STANDARDS_TO_DISPLAY.length
                 ? standardsToDisplay(elem.standards)
                 : Array(STANDARDS_TO_DISPLAY.length).fill({}) as Standard[];
-            console.log(standards)
 
             const values = elem.values && elem.values.length >= VALUES_TO_DISPLAY.length
                 ? valuesToDisplay(elem.values)
@@ -86,8 +85,8 @@ class Row extends PureComponent<RowProps> {
                 </TableCell>
                 {
                     indexes.map((index, key) => {
-                        return <Tooltip title={index.level}>
-                            <TableCell key={key}>
+                        return <Tooltip title={index.level} key={key}>
+                            <TableCell>
                                 {index.value}
                             </TableCell>
                         </Tooltip>
@@ -192,7 +191,6 @@ class Rows extends PureComponent<RowsProps, RowsState>{
                 const given = Math.floor(floatIdx);
                 return Math.min(given, elementsCount - renderCount);
             })();
-            // this.props.onTableTopChange(rowHeight * (floatIdx - Math.floor(floatIdx)))
             const [from, till] = [0, renderCount].map(x => x + renderOffset);
             this.props.loadMoreItems(from, till);
             this.setState({
@@ -254,8 +252,8 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
         scrollTop: 0,
     }
 
-    unsubAuthStateChanged?: firebase.Unsubscribe;
-    unsubHistoryOnSnapshot?: firebase.Unsubscribe;
+    unsubAuthStateChanged?: firebaseApp.Unsubscribe;
+    unsubHistoryOnSnapshot?: firebaseApp.Unsubscribe;
 
     async componentDidMount() {
 
@@ -267,7 +265,7 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
 
         const init = async () => {
             const { installationId } = this.props;
-            const qs = await firebase.firestore()
+            const qs = await firebaseApp.firestore()
                 .doc(`installations/${installationId}`)
                 .collection('history')
                 .orderBy('fromDateTime', 'desc')
@@ -279,33 +277,15 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
                 initComplete,
                 itemCount,
             })
-            // this.unsubHistoryOnSnapshot = firebase.firestore()
-            //     .doc(`installations/${installationId}`)
-            //     .collection('history')
-            //     .onSnapshot({
-            //         next: (snap) => {
-            //             console.log(snap)
-            //             init();
-            //         },
-            //         error: (err) => {
-
-            //         }
-            //     })
         }
 
-        const user = firebase.auth().currentUser;
-
-        if (user) {
-            await init();
-        } else {
-            this.unsubAuthStateChanged = firebase.auth().onAuthStateChanged(user => {
-                if (user && !this.state.initComplete) {
-                    init();
-                } else if (!user) {
-                    // TODO
-                }
-            })
-        }
+        this.unsubAuthStateChanged = firebaseApp.auth().onAuthStateChanged(user => {
+            if (user && !this.state.initComplete) {
+                init();
+            } else if (!user) {
+                // TODO
+            }
+        })
 
     }
 
@@ -431,7 +411,7 @@ export function InstallationView() {
     return (
         <>
             <TheAppBar
-                goBackTo="/browse"
+                goBackTo="/"
             />
             <InstallationsTable
                 installationId={installationId}

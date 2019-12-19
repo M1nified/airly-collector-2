@@ -4,6 +4,7 @@ import { AirlySettingsFS } from '../../shared/lib/firestore/AirlySettingsFS';
 import { InstallationFS } from '../../shared/lib/firestore/InstallationFS';
 import { Measurements } from '../../shared/src/models/AirlyApiModels';
 import admin = require('firebase-admin');
+import * as cors from 'cors';
 
 // // Start writing Firebase Functions
 // // https://firebase.google.com/docs/functions/typescript
@@ -11,6 +12,10 @@ import admin = require('firebase-admin');
 // export const helloWorld = functions.https.onRequest((request, response) => {
 //  response.send('Hello from Firebase!');
 // });
+
+cors({
+    origin: true,
+});
 
 const app = admin.initializeApp();
 
@@ -103,10 +108,11 @@ export const onUserWriteCreateInstallations = functions
     })
 
 export const getInstalltionInfo = functions
-    .region('europe-west2')
+    // .region('europe-west2')
     .https
     .onCall(async (data, context) => {
         console.log('start', data, context);
+
         const { installationId } = data;
         if (!installationId) {
             return {
@@ -117,19 +123,19 @@ export const getInstalltionInfo = functions
 
         const installationDS = await admin.firestore()
             .collection('installations')
-            .doc(installationId)
+            .doc(installationId.toString())
             .get();
         if (installationDS.exists) {
             const { info } = installationDS.data() as InstallationFS || {};
             if (info) {
-                return info;
+                return { info };
             }
         }
 
         const info = await setInstallationInfo(installationId);
 
         console.log('end', info)
-        return info;
+        return { info };
     })
 
 const setInstallationInfo = async (installationId: number) => {

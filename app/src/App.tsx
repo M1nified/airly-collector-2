@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Route, Switch, Redirect } from 'react-router-dom';
+import { BrowserRouter, Redirect, Route, Switch } from 'react-router-dom';
 import './App.css';
 import { HomeView } from './views/HomeView/HomeView';
 import { InstallationView } from './views/InstallationView/InstallationView';
@@ -8,17 +8,11 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <Switch>
-        <Route path="/browse/:installationId">
+        <Route path="/installation/:installationId">
           <InstallationView />
         </Route>
-        <Route path="/browse">
-          <HomeView />
-        </Route>
-        <Route path="/settings">
-
-        </Route>
         <Route path="/">
-          <Redirect to="/browse" />
+          <HomeView />
         </Route>
       </Switch>
     </BrowserRouter>

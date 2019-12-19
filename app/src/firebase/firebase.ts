@@ -1,7 +1,9 @@
-// var admin = require("firebase-admin");
-import firebase from 'firebase/app';
+import firebaseApp from 'firebase/app';
 import 'firebase/auth';
 import 'firebase/firestore';
+import 'firebase/functions';
+
+const DEBUG = false;
 
 const firebaseConfig = {
     apiKey: "AIzaSyDbI_bmAmgbarX7cAqoXXESz-BfPZzHUh0",
@@ -13,5 +15,8 @@ const firebaseConfig = {
     appId: "1:1059575110841:web:e9ee0d36d0b8a60f820f68",
     measurementId: "G-J9HRYEV84W"
 };
-firebase.initializeApp(firebaseConfig);
-export default firebase;
+firebaseApp.initializeApp(firebaseConfig);
+if (DEBUG) {
+    firebaseApp.functions().useFunctionsEmulator('http://localhost:3081');
+}
+export default firebaseApp;

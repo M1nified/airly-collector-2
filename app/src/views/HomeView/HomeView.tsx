@@ -1,173 +1,233 @@
-import React, { Component } from "react";
-import firebase from "./../../firebase";
-import TheAppBar from '../../components/theAppBar/TheAppBar'
-import { InstallationFS } from './../../../../shared/lib/firestore/InstallationFS'
-import { firestore } from "firebase";
-import { Fab, SvgIcon, Tooltip, Dialog, DialogTitle, DialogContent, DialogContentText, TextField, DialogActions, Button } from "@material-ui/core";
-import { mdiPlus } from "@mdi/js";
+import { Box, Button, Container, Fab, Paper, Step, StepLabel, Stepper, SvgIcon, TextField, Tooltip, Typography, Zoom, CircularProgress, Backdrop } from "@material-ui/core";
+import { mdiPencil } from "@mdi/js";
+import React, { Component, SyntheticEvent } from "react";
+import { Installation } from "../../../../shared/src/models/AirlyApiModels";
 import { InstallationsTable } from "../../components/installationsTable/InstallationsTable";
+import TheAppBar from '../../components/theAppBar/TheAppBar';
+import firebaseApp from "../../firebase/firebase";
+import { addUserInstallation } from '../../firebase/users';
+import { SignInWithGoogleButton } from "../../components/signInWithGoogleButton/SignInWithGoogleButton";
 
 type HomeViewState = {
-    user: firebase.User | null,
-    installations: InstallationFS[],
-    storedUser?: {
-        installations?: firebase.firestore.DocumentReference[],
-    },
-    addInstallationDialogOpen: boolean,
-    newInstallationId: number | null,
+    user: firebaseApp.User | null,
+    editMode: boolean,
+    userInstallationsCount: number,
+    newInstallationId: string,
+    activeStep: number,
+    initIsDone: boolean,
 }
 
 type HomeViewProps = {
-
 }
 
 export class HomeView extends Component<HomeViewProps, HomeViewState>{
 
     state: HomeViewState = {
         user: null,
-        installations: [],
-        addInstallationDialogOpen: false,
-        newInstallationId: null,
+        editMode: false,
+        userInstallationsCount: 0,
+        newInstallationId: "",
+        activeStep: 0,
+        initIsDone: false,
     }
 
+
+    unsubAuthStateChanged?: firebaseApp.Unsubscribe
+
     async componentDidMount() {
-        const user = firebase.auth().currentUser;
-
-        this.updateStateUser();
-
-        this.setState({
-            user,
-        })
-
-        firebase.auth().onIdTokenChanged((user) => {
-            if (user && (!this.state.user || user.uid !== this.state.user.uid)) {
-                this.updateStateUser();
+        const setUserInstallationsCount = async (user: firebase.User | null) => {
+            if (!user) {
+                this.setState({
+                    userInstallationsCount: 0,
+                    initIsDone: true,
+                });
+                return;
             }
+            const doc = await firebaseApp.firestore()
+                .collection('users')
+                .doc(user.uid)
+                .get();
+            const installations = doc.data()?.installations ?? [];
+            this.setState({
+                userInstallationsCount: installations.length,
+                initIsDone: true,
+            });
+        }
+
+        this.unsubAuthStateChanged = firebaseApp.auth().onAuthStateChanged((user) => {
+            setUserInstallationsCount(user);
             this.setState({
                 user,
-            })
+                activeStep: !user ? 0 : 1,
+            });
         })
+    }
+
+    componentWillUnmount() {
+        this.unsubAuthStateChanged?.call(this);
     }
 
     render() {
+        const { editMode, userInstallationsCount, activeStep, initIsDone, user } = this.state;
         return <>
-            <TheAppBar />
-            <InstallationsTable />
-            <Tooltip
-                title="Add installation to your list"
+            <TheAppBar hideSignIn={activeStep === 0} />
+            {
+                userInstallationsCount === 0
+                    ? <>
+                        <Container>
+                            <Paper
+                                style={{
+                                    padding: 10,
+                                    marginTop: 10,
+                                    textAlign: "center",
+                                }}
+                            >
+                                <Typography className="h2">
+                                    Welcome to Airly Collector
+                    </Typography>
+                                <Stepper activeStep={activeStep}>
+                                    <Step
+                                        completed={!!user}
+                                    >
+                                        <StepLabel>Sign in</StepLabel>
+                                    </Step>
+                                    <Step
+                                        completed={false}
+                                    >
+                                        <StepLabel>Add installation</StepLabel>
+                                    </Step>
+                                </Stepper>
+                                {
+                                    this.getStepContent()
+                                }
+                            </Paper>
+                        </Container>
+                    </>
+                    : <>
+                        <InstallationsTable
+                            editMode={editMode}
+                            onEditModeOff={() => this.setState({
+                                editMode: false,
+                            })}
+                        />
+                        {
+                            <Zoom
+                                in={!editMode}
+                                style={{
+                                    right: "10px",
+                                    bottom: "10px",
+                                    position: "fixed",
+                                }}
+                            >
+                                <Tooltip
+                                    title="Edit/Add installations"
+                                >
+                                    <Fab
+                                        color="primary"
+                                        onClick={() => this.setState({
+                                            editMode: true,
+                                        })}
+                                    >
+                                        <SvgIcon><path d={mdiPencil} /></SvgIcon>
+                                    </Fab>
+                                </Tooltip>
+                            </Zoom>
+                        }
+                    </>
+            }
+            <Backdrop
+                open={!initIsDone}
+                style={{
+                    zIndex: 1,
+                }}
             >
-                <Fab
-                    color="primary"
+                <CircularProgress color="primary"
                     style={{
-                        right: "10px",
-                        bottom: "10px",
-                        position: "fixed",
+                        zIndex: 2,
                     }}
-                    onClick={this.handleAddInstallationButtonClick}
-                >
-                    <SvgIcon><path d={mdiPlus} /></SvgIcon>
-                </Fab>
-            </Tooltip>
-            <Dialog
-                open={this.state.addInstallationDialogOpen}
-                onClose={() => this.setState({ addInstallationDialogOpen: false, })}
-            >
-                <DialogTitle>Add new installation.</DialogTitle>
-                <DialogContent>
-                    <DialogContentText><a href="https://airly.eu/map">https://airly.eu/map</a></DialogContentText>
-                    <TextField
-                        value={this.state.newInstallationId || ""}
-                        label="Installation id"
-                        type="number"
-                        onChange={(evt) => this.setState({ newInstallationId: Number.parseInt(evt.target.value) })}
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button
-                        onClick={this.handleAddInstallationSubmitButtonClick}
-                    >
-                        Submit
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                />
+            </Backdrop>
         </>
     }
 
-    handleAddInstallationButtonClick = async () => {
-        this.setState({
-            addInstallationDialogOpen: true,
-        })
-    }
-
-    handleAddInstallationSubmitButtonClick = async () => {
-        const { newInstallationId, storedUser, user } = this.state;
-        if (!newInstallationId || !storedUser || !user) {
-            return;
-        }
-        console.log('x')
-        if (!Array.isArray(storedUser.installations) || !storedUser.installations?.some(inst => inst.id === newInstallationId.toString())) {
-            const newInstallationRef = firebase.firestore().collection('installations').doc(newInstallationId.toString());
-            const installations = storedUser.installations?.concat(newInstallationRef) || [newInstallationRef];
-            await firebase.firestore().collection('users').doc(user.uid).update({
-                installations,
-            });
-            await firebase.firestore().waitForPendingWrites();
-            const newInstallation = (await newInstallationRef.get()).data() as InstallationFS;
-            if (newInstallation) {
-                this.setState({
-                    installations: this.state.installations.concat(newInstallation),
-                    storedUser: { ...this.state.storedUser, installations }
-                });
-            } else {
-                this.setState({
-                    storedUser: { ...this.state.storedUser, installations }
-                });
-                const unsub = newInstallationRef.onSnapshot(async (doc) => {
-                    const data = doc.data();
-                    if (doc.exists && data && data.info) {
-                        this.updateStateUser();
-                        unsub();
+    handleFirstInstallationFormSubmit = async (evt: SyntheticEvent) => {
+        evt.preventDefault();
+        const { newInstallationId, user, userInstallationsCount } = this.state;
+        const installationId = Number.parseInt(newInstallationId);
+        if (user && typeof installationId === 'number' && !isNaN(installationId)) {
+            try {
+                const getInstalltionInfo = firebaseApp
+                    .functions()
+                    .httpsCallable('getInstalltionInfo');
+                const resp = await getInstalltionInfo({ installationId });
+                if (resp.data.error) {
+                    throw resp.data.reason || "Unknown error.";
+                }
+                const { info }: { info: Installation } = resp.data;
+                if (info) {
+                    const result = await addUserInstallation(user.uid, installationId);
+                    if (result) {
+                        this.setState({
+                            newInstallationId: "",
+                            userInstallationsCount: userInstallationsCount + 1,
+                        })
                     }
-                })
+                }
+            } catch (err) {
+                console.error(err);
             }
         }
     }
 
-    //
+    getStepContent = () => {
+        const { activeStep, newInstallationId } = this.state;
+        switch (activeStep) {
+            case 0:
+                return <>
+                    <Typography>Please sing in using your google account to keep track of your Airly installations.</Typography>
+                    <Typography style={{ textAlign: "center" }}>
+                        <SignInWithGoogleButton />
+                    </Typography>
+                </>
+                break;
 
-    updateStateUser = async () => {
-        const user = firebase.auth().currentUser;
-        if (!user)
-            return;
-        await firebase.firestore().waitForPendingWrites();
-        const storedUser = await firebase.firestore()
-            .collection('users')
-            .doc(user.uid)
-            .get()
-            .then(x => x.data())
-        if (storedUser) {
-            this.setState({
-                storedUser,
-            })
+            case 1:
+                return <>
+                    <Typography>Please submit an id of installation you want to keep track off.</Typography>
+                    <form onSubmit={this.handleFirstInstallationFormSubmit} style={{ marginTop: 10 }}>
+                        <Box style={{ margin: 10 }}>
+                            <TextField
+                                required
+                                variant="outlined"
+                                placeholder="Installation ID"
+                                label="Installation ID"
+                                value={newInstallationId}
+                                onChange={
+                                    evt => this.setState({
+                                        newInstallationId: evt.target.value,
+                                    })
+                                }
+                            />
+                        </Box>
+                        <Box style={{ margin: 10 }}>
+                            <Button
+                                type="submit"
+                                variant="contained"
+                                size="large"
+                                color="primary"
+                            >
+                                Submit
+                                        </Button>
+                        </Box>
+                    </form>
+                </>
+                break;
+
+            default:
+                return <>
+                </>
+                break;
         }
-        if (storedUser && storedUser.installations) {
-            console.log(storedUser)
-            const installations = (await Promise.all(
-                (storedUser.installations as firestore.DocumentReference[])
-                    .map(x => x
-                        .get()
-                        .then(x => x.data())
-                    )
-            )).filter(x => x) as unknown as InstallationFS[];
-            console.log(installations)
-            this.setState({
-                installations,
-            })
-        }
-        this.setState({
-            newInstallationId: null,
-            addInstallationDialogOpen: false,
-        })
     }
 
 }

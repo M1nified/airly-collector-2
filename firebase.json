@@ -3,7 +3,8 @@
     "predeploy": [
       "npm --prefix \"$RESOURCE_DIR\" run lint",
       "npm --prefix \"$RESOURCE_DIR\" run build"
-    ]
+    ],
+    "source": "functions"
   },
   "hosting": {
     "public": "app/build",
@@ -23,8 +24,12 @@
     "hosting": {
       "port": 3080
     },
-    "functions":{
+    "functions": {
       "port": 3081
     }
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
   }
 }
