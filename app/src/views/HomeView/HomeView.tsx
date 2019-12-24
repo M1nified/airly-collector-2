@@ -193,7 +193,7 @@ export class HomeView extends Component<HomeViewProps, HomeViewState>{
 
             case 1:
                 return <>
-                    <Typography>Please submit an id of installation you want to keep track off.</Typography>
+                    <Typography>Please submit an id of installation you want to keep tracking.</Typography>
                     <form onSubmit={this.handleFirstInstallationFormSubmit} style={{ marginTop: 10 }}>
                         <Box style={{ margin: 10 }}>
                             <TextField

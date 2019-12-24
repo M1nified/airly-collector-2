@@ -95,7 +95,7 @@ class Row extends PureComponent<RowProps> {
                 {
                     standards.map((standard, key) => {
                         return <TableCell key={key}>
-                            {standard.percent}/{standard.limit}
+                            {standard.percent}%
                         </TableCell>
                     })
                 }
