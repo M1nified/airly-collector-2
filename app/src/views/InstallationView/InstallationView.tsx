@@ -1,5 +1,5 @@
-import { Paper, SvgIcon, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip } from "@material-ui/core";
-import { mdiCheckboxBlankCircle } from "@mdi/js";
+import { Checkbox, Fab, List, ListItem, ListItemIcon, ListItemText, Paper, SvgIcon, SwipeableDrawer, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tooltip, Zoom } from "@material-ui/core";
+import { mdiCheck, mdiCheckboxBlankCircle, mdiFilterVariant } from "@mdi/js";
 import React, { PureComponent } from "react";
 import ReactDOM from 'react-dom';
 import { useParams } from "react-router-dom";
@@ -7,23 +7,31 @@ import { AveragedValues, Index, Standard, Value } from "../../../../shared/src/m
 import TheAppBar from "../../components/theAppBar/TheAppBar";
 import firebaseApp from "../../firebase/firebase";
 
+export const dateToDisplay = (date: Date) => {
+
+    return `${date.toLocaleDateString()} ${date.toLocaleTimeString("en-UK", {
+        hour12: false,
+    })}`;
+}
+
 const INDEXES_TO_DISPLAY = [
-    { name: "AIRLY_CAQI" },
+    { id: 1, name: "AIRLY_CAQI", displayName: <>Airly&nbsp;CAQI</> },
 ];
 const STANDARDS_TO_DISPLAY = [
-    { name: "WHO", pollutant: "PM25" },
-    { name: "WHO", pollutant: "PM10" },
+    { id: 1, name: "WHO", pollutant: "PM25", displayName: <>WHO&nbsp;PM2.5</> },
+    { id: 2, name: "WHO", pollutant: "PM10", displayName: <>WHO&nbsp;PM10</> },
 ];
 const VALUES_TO_DISPLAY = [
-    { name: "PM1" },
-    { name: "PM25" },
-    { name: "PM10" },
-    { name: "PRESSURE" },
-    { name: "HUMIDITY" },
-    { name: "TEMPERATURE" },
+    { id: 1, name: "PM1", displayName: "PM1" },
+    { id: 2, name: "PM25", displayName: "PM2.5" },
+    { id: 3, name: "PM10", displayName: "PM10" },
+    { id: 4, name: "PRESSURE", displayName: "Pressure" },
+    { id: 5, name: "HUMIDITY", displayName: "Humidity" },
+    { id: 6, name: "TEMPERATURE", displayName: "Temperature" },
 ];
 
-const matchPatternToDisplay = (challengers: any[]) => (candidate: any): boolean => challengers.some(chal => Object.keys(chal).every(key => candidate[key] === chal[key]));
+const matchPatternToDisplay = (challengers: any[]) => (candidate: any): boolean => challengers
+    .some(chal => Object.keys(chal).filter(key => !['displayName', 'id'].includes(key)).every(key => candidate[key] === chal[key]));
 
 const indexesToDisplay = (indexes: Index[]): Index[] => indexes.filter(matchPatternToDisplay(INDEXES_TO_DISPLAY));
 
@@ -42,32 +50,48 @@ let historyRecords: AveragedValues[] = [];
 type RowProps = {
     index: number,
     style: any,
+    columnsToDisplay: ColumnsToDisplay,
 }
 
 class Row extends PureComponent<RowProps> {
     render() {
-        const { index, style } = this.props;
+        const { index, style, columnsToDisplay } = this.props;
         let elem, content;
         if (itemStatusMap[index] === LOADED) {
             elem = historyRecords[index];
         }
         if (elem) {
+            const { fromDateTime, tillDateTime, indexes, standards, values } = elem;
 
-            const indexes = elem.indexes && elem.indexes.length >= INDEXES_TO_DISPLAY.length
-                ? indexesToDisplay(elem.indexes)
+            const indexesToShow = indexes && indexes.length >= INDEXES_TO_DISPLAY.length
+                ? indexesToDisplay(indexes.filter(x =>
+                    columnsToDisplay.indexes.some(({ checked, record }) => checked && record.name === x.name)
+                ))
                 : Array(INDEXES_TO_DISPLAY.length).fill({}) as Index[];
 
-            const standards = elem.standards && elem.standards.length >= STANDARDS_TO_DISPLAY.length
-                ? standardsToDisplay(elem.standards)
+            const colorsToShow = indexes && indexes.length >= INDEXES_TO_DISPLAY.length
+                ? indexesToDisplay(indexes)
+                : Array(INDEXES_TO_DISPLAY.length).fill({}) as Index[];
+
+            const standardsToShow = standards && standards.length >= STANDARDS_TO_DISPLAY.length
+                ? standardsToDisplay(standards.filter(x =>
+                    columnsToDisplay.standards.some(({ checked, record }) => checked && record.name === x.name)
+                ))
                 : Array(STANDARDS_TO_DISPLAY.length).fill({}) as Standard[];
 
-            const values = elem.values && elem.values.length >= VALUES_TO_DISPLAY.length
-                ? valuesToDisplay(elem.values)
+            const valuesToShow = values && values.length >= VALUES_TO_DISPLAY.length
+                ? valuesToDisplay(values.filter(x =>
+                    columnsToDisplay.values.some(({ checked, record }) => checked && record.name === x.name)
+                ))
                 : Array(VALUES_TO_DISPLAY.length).fill({}) as Value[];
+
+            const from = fromDateTime && dateToDisplay(new Date(fromDateTime));
+            const till = tillDateTime && dateToDisplay(new Date(tillDateTime));
 
             content = <>
                 {
-                    indexes.map((index, key) => {
+                    columnsToDisplay.colors &&
+                    colorsToShow.map((index, key) => {
                         return <TableCell key={key}>
                             <Tooltip title={`${index.name}`}>
                                 <SvgIcon
@@ -77,14 +101,24 @@ class Row extends PureComponent<RowProps> {
                         </TableCell>
                     })
                 }
-                <TableCell>
-                    {elem.fromDateTime}
-                </TableCell>
-                <TableCell>
-                    {elem.tillDateTime}
-                </TableCell>
                 {
-                    indexes.map((index, key) => {
+                    columnsToDisplay.from &&
+                    <Tooltip title={fromDateTime}>
+                        <TableCell>
+                            {from}
+                        </TableCell>
+                    </Tooltip>
+                }
+                {
+                    columnsToDisplay.till &&
+                    <Tooltip title={tillDateTime}>
+                        <TableCell>
+                            {till}
+                        </TableCell>
+                    </Tooltip>
+                }
+                {
+                    indexesToShow.map((index, key) => {
                         return <Tooltip title={index.level} key={key}>
                             <TableCell>
                                 {index.value}
@@ -93,14 +127,14 @@ class Row extends PureComponent<RowProps> {
                     })
                 }
                 {
-                    standards.map((standard, key) => {
+                    standardsToShow.map((standard, key) => {
                         return <TableCell key={key}>
                             {standard.percent}%
                         </TableCell>
                     })
                 }
                 {
-                    values.map((value, key) => {
+                    valuesToShow.map((value, key) => {
                         return <TableCell key={key}>
                             {value.value}
                         </TableCell>
@@ -126,6 +160,7 @@ type RowsProps = {
     loadMoreItems(fromIndex: number, tillIndex: number): Promise<any>,
     onRowHeightChange(rowHeight: number): any,
     scrollTop: number,
+    columnsToDisplay: ColumnsToDisplay,
 }
 
 type RowsState = {
@@ -201,6 +236,7 @@ class Rows extends PureComponent<RowsProps, RowsState>{
 
     render() {
         const { renderOffset, renderCount, iteration, bodyId } = this.state;
+        const { columnsToDisplay } = this.props;
         return (
             <>
                 <TableBody
@@ -212,7 +248,12 @@ class Rows extends PureComponent<RowsProps, RowsState>{
                     {
                         Array(renderCount).fill(undefined).map((x, idx) => {
                             const index = idx + renderOffset;
-                            return <Row key={index} index={index} style={null} />
+                            return <Row
+                                key={index}
+                                index={index}
+                                style={null}
+                                columnsToDisplay={columnsToDisplay}
+                            />
                         })
                     }
                 </TableBody>
@@ -231,6 +272,15 @@ class Rows extends PureComponent<RowsProps, RowsState>{
     }
 }
 
+type ColumnsToDisplay = {
+    indexes: { record: any, checked: boolean }[],
+    standards: { record: any, checked: boolean }[],
+    values: { record: any, checked: boolean }[],
+    from: boolean,
+    till: boolean,
+    colors: boolean,
+};
+
 type InstallationsTableProps = {
     installationId: number,
 }
@@ -240,6 +290,8 @@ type InstallationsTableState = {
     containerOffsetTop: number,
     rowHeight: number,
     scrollTop: number,
+    filterDrawerOpen: boolean,
+    columnsToDisplay: ColumnsToDisplay,
 }
 
 class InstallationsTable extends PureComponent<InstallationsTableProps, InstallationsTableState>{
@@ -250,6 +302,15 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
         containerOffsetTop: 0,
         rowHeight: 1,
         scrollTop: 0,
+        filterDrawerOpen: false,
+        columnsToDisplay: {
+            indexes: INDEXES_TO_DISPLAY.map(x => ({ record: x, checked: true })),
+            standards: STANDARDS_TO_DISPLAY.map(x => ({ record: x, checked: true })),
+            values: VALUES_TO_DISPLAY.map(x => ({ record: x, checked: true })),
+            from: true,
+            till: true,
+            colors: true,
+        },
     }
 
     unsubAuthStateChanged?: firebaseApp.Unsubscribe;
@@ -265,6 +326,9 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
 
         const init = async () => {
             const { installationId } = this.props;
+            const { currentUser } = firebaseApp.auth();
+            if (!currentUser)
+                return;
             const qs = await firebaseApp.firestore()
                 .doc(`installations/${installationId}`)
                 .collection('history')
@@ -272,6 +336,29 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
                 .get()
             const itemCount = qs.size;
             docRefs = qs.docs;
+
+            const userFS = await firebaseApp.firestore()
+                .collection('users')
+                .doc(currentUser.uid)
+                .get()
+                .then(x => x.data());
+
+            if (userFS && userFS.columnsToDisplay) {
+                const { columnsToDisplay } = userFS;
+                const ctd = {
+                    ...columnsToDisplay,
+                    indexes: INDEXES_TO_DISPLAY.map(x => ({ record: x, checked: columnsToDisplay.indexes.find((y: any) => y.record?.id === x.id)?.checked ?? true })),
+                    standards: STANDARDS_TO_DISPLAY.map(x => ({ record: x, checked: columnsToDisplay.standards.find((y: any) => y.record?.id === x.id)?.checked ?? true })),
+                    values: VALUES_TO_DISPLAY.map(x => ({ record: x, checked: columnsToDisplay.values.find((y: any) => y.record?.id === x.id)?.checked ?? true })),
+                }
+                this.setState({
+                    columnsToDisplay: {
+                        ...this.state.columnsToDisplay,
+                        ...ctd,
+                    }
+                })
+            }
+
             const initComplete = true;
             this.setState({
                 initComplete,
@@ -295,7 +382,7 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
     }
 
     render() {
-        const { containerOffsetTop, rowHeight, itemCount } = this.state;
+        const { containerOffsetTop, rowHeight, itemCount, filterDrawerOpen, columnsToDisplay } = this.state;
 
         const thStyle: React.CSSProperties = {
             position: 'sticky',
@@ -320,26 +407,38 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
                         <TableRow>
                             <TableCell style={thStyle}>
                             </TableCell>
-                            <TableCell style={thStyle}>
-                                From
-                            </TableCell>
-                            <TableCell style={thStyle}>
-                                Till
-                            </TableCell>
                             {
-                                INDEXES_TO_DISPLAY.map((index, key) => <TableCell key={key}>
-                                    {index.name}
-                                </TableCell>)
+                                columnsToDisplay.from &&
+                                <TableCell style={thStyle}>
+                                    From
+                            </TableCell>
                             }
                             {
-                                STANDARDS_TO_DISPLAY.map((standard, key) => <TableCell key={key}>
-                                    {standard.pollutant}
-                                </TableCell>)
+                                columnsToDisplay.till &&
+                                <TableCell style={thStyle}>
+                                    Till
+                            </TableCell>
                             }
                             {
-                                VALUES_TO_DISPLAY.map((value, key) => <TableCell key={key}>
-                                    {value.name}
-                                </TableCell>)
+                                columnsToDisplay.indexes
+                                    .filter(x => x.checked)
+                                    .map((index, key) => <TableCell key={key} style={thStyle}>
+                                        {index.record.displayName}
+                                    </TableCell>)
+                            }
+                            {
+                                columnsToDisplay.standards
+                                    .filter(x => x.checked)
+                                    .map((standard, key) => <TableCell key={key} style={thStyle}>
+                                        {standard.record.displayName}
+                                    </TableCell>)
+                            }
+                            {
+                                columnsToDisplay.values
+                                    .filter(x => x.checked)
+                                    .map((value, key) => <TableCell key={key} style={thStyle}>
+                                        {value.record.displayName}
+                                    </TableCell>)
                             }
                         </TableRow>
                     </TableHead>
@@ -352,6 +451,7 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
                                 loadMoreItems={this.loadMoreItems}
                                 onRowHeightChange={this.handleRowHeightChange}
                                 scrollTop={this.state.scrollTop}
+                                columnsToDisplay={columnsToDisplay}
                             />
                         )
                     }
@@ -362,7 +462,171 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
                     &nbsp;
                 </div>
             </TableContainer>
+            <Zoom
+                in={!filterDrawerOpen}
+                style={{
+                    position: "fixed",
+                    bottom: 10,
+                    right: 10,
+                }}
+            >
+                <Fab color="primary" onClick={() => this.setState({ filterDrawerOpen: true })}>
+                    <SvgIcon><path d={mdiFilterVariant} /></SvgIcon>
+                </Fab>
+            </Zoom>
+            <Zoom
+                in={filterDrawerOpen}
+                style={{
+                    position: "fixed",
+                    bottom: 10,
+                    right: 10,
+                    zIndex: 2000,
+                }}
+            >
+                <Fab color="primary" onClick={this.handleFilterDrawerClose}>
+                    <SvgIcon><path d={mdiCheck} /></SvgIcon>
+                </Fab>
+            </Zoom>
+            <SwipeableDrawer
+                open={filterDrawerOpen}
+                anchor="bottom"
+                onOpen={() => this.setState({ filterDrawerOpen: true })}
+                onClose={this.handleFilterDrawerClose}
+            >
+                <>
+                    <List>
+                        <ListItem>
+                            <ListItemIcon>
+                                <Checkbox
+                                    edge="start"
+                                    checked={columnsToDisplay.from}
+                                    onChange={(evt => {
+                                        const checked = evt.target.checked;
+                                        const ctd = { ...columnsToDisplay };
+                                        ctd.from = checked;
+                                        this.setState({
+                                            columnsToDisplay: ctd,
+                                        });
+                                    })}
+                                />
+                            </ListItemIcon>
+                            <ListItemText>
+                                From
+                                </ListItemText>
+                        </ListItem>
+                        <ListItem>
+                            <ListItemIcon>
+                                <Checkbox
+                                    edge="start"
+                                    checked={columnsToDisplay.till}
+                                    onChange={(evt => {
+                                        const checked = evt.target.checked;
+                                        const ctd = { ...columnsToDisplay };
+                                        ctd.till = checked;
+                                        this.setState({
+                                            columnsToDisplay: ctd,
+                                        });
+                                    })}
+                                />
+                            </ListItemIcon>
+                            <ListItemText>
+                                Till
+                                </ListItemText>
+                        </ListItem>
+                        {
+                            columnsToDisplay.indexes.map((itd, key) => <ListItem key={key}>
+                                <ListItemIcon>
+                                    <Checkbox
+                                        edge="start"
+                                        checked={itd.checked}
+                                        onChange={(evt => {
+                                            const checked = evt.target.checked;
+                                            const ctd = { ...columnsToDisplay };
+                                            ctd.indexes = columnsToDisplay.indexes.map(x => x.record === itd.record ? { ...x, checked } : x);
+                                            this.setState({
+                                                columnsToDisplay: ctd,
+                                            });
+                                        })}
+                                    />
+                                </ListItemIcon>
+                                <ListItemText>
+                                    {itd.record.displayName}
+                                </ListItemText>
+                            </ListItem>)
+                        }
+                        {
+
+                            columnsToDisplay.standards.map((itd, key) => <ListItem key={key}>
+                                <ListItemIcon>
+                                    <Checkbox
+                                        edge="start"
+                                        checked={itd.checked}
+                                        onChange={(evt => {
+                                            const checked = evt.target.checked;
+                                            const ctd = { ...columnsToDisplay };
+                                            ctd.standards = columnsToDisplay.standards.map(x => x.record === itd.record ? { ...x, checked } : x);
+                                            this.setState({
+                                                columnsToDisplay: ctd,
+                                            });
+                                        })}
+                                    />
+                                </ListItemIcon>
+                                <ListItemText>
+                                    {itd.record.displayName}
+                                </ListItemText>
+                            </ListItem>)
+                        }
+                        {
+
+                            columnsToDisplay.values.map((itd, key) => <ListItem key={key}>
+                                <ListItemIcon>
+                                    <Checkbox
+                                        edge="start"
+                                        checked={itd.checked}
+                                        onChange={(evt => {
+                                            const checked = evt.target.checked;
+                                            const ctd = { ...columnsToDisplay };
+                                            ctd.values = columnsToDisplay.values.map(x => x.record === itd.record ? { ...x, checked } : x);
+                                            this.setState({
+                                                columnsToDisplay: ctd,
+                                            });
+                                        })}
+                                    />
+                                </ListItemIcon>
+                                <ListItemText>
+                                    {itd.record.displayName}
+                                </ListItemText>
+                            </ListItem>)
+                        }
+                    </List>
+                </>
+            </SwipeableDrawer>
         </>
+    }
+
+    handleFilterDrawerClose = () => {
+        this.setState({ filterDrawerOpen: false });
+        const user = firebaseApp.auth().currentUser;
+        if (user) {
+            const { columnsToDisplay: ctd } = this.state;
+            const columnsToDisplay = {
+                ...ctd,
+                indexes: ctd.indexes.map(x => ({ ...x, record: { id: x.record.id } })),
+                standards: ctd.standards.map(x => ({ ...x, record: { id: x.record.id } })),
+                values: ctd.values.map(x => ({ ...x, record: { id: x.record.id } })),
+            }
+
+            try {
+                firebaseApp.firestore()
+                    .collection('users')
+                    .doc(user.uid)
+                    .update({
+                        columnsToDisplay,
+                    });
+            } catch (err) {
+                console.error(err);
+            }
+        }
     }
 
     handleScroll = (evt: React.UIEvent) => {
@@ -395,6 +659,7 @@ class InstallationsTable extends PureComponent<InstallationsTableProps, Installa
                     const idxReal = startIndex + idx;
                     historyRecords[idxReal] = docRef.data();
                     itemStatusMap[idxReal] = LOADED;
+                    return null;
                 })
         );
     };
