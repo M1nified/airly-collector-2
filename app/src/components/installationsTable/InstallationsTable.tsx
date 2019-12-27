@@ -1,6 +1,6 @@
 import { BottomNavigation, BottomNavigationAction, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Drawer, Paper, SvgIcon, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField } from "@material-ui/core";
-import { mdiClose, mdiDelete, mdiPlus } from "@mdi/js";
-import React, { Component } from "react";
+import { mdiCheck, mdiDelete, mdiPlus } from "@mdi/js";
+import React, { Component, FormEvent } from "react";
 import { Redirect } from "react-router-dom";
 import { InstallationFS } from "../../../../shared/src/firestore/InstallationFS";
 import firebaseApp from '../../firebase/firebase';
@@ -158,9 +158,9 @@ export class InstallationsTable extends Component<Readonly<InstallationsTablePro
                         disabled={!Object.values(checkedIds).some(ci => ci)}
                     />
                     <BottomNavigationAction
-                        label="Exit edit mode"
+                        label="Done"
                         onClick={() => this.props.onEditModeOff()}
-                        icon={<SvgIcon><path d={mdiClose} /></SvgIcon>}
+                        icon={<SvgIcon><path d={mdiCheck} /></SvgIcon>}
                     />
                 </BottomNavigation>
             </Drawer>
@@ -169,22 +169,24 @@ export class InstallationsTable extends Component<Readonly<InstallationsTablePro
                 onClose={() => this.setState({ addInstallationDialogOpen: false, })}
             >
                 <DialogTitle>Add new installation.</DialogTitle>
-                <DialogContent>
-                    <DialogContentText><a href="https://airly.eu/map">https://airly.eu/map</a></DialogContentText>
-                    <TextField
-                        value={this.state.newInstallationId || ""}
-                        label="Installation id"
-                        type="number"
-                        onChange={(evt) => this.setState({ newInstallationId: Number.parseInt(evt.target.value) })}
-                    />
-                </DialogContent>
-                <DialogActions>
-                    <Button
-                        onClick={this.handleAddInstallationSubmitButtonClick}
-                    >
-                        Submit
+                <form onSubmit={this.handleAddInstallationFormSubmit}>
+                    <DialogContent>
+                        <DialogContentText><a href="https://airly.eu/map">https://airly.eu/map</a></DialogContentText>
+                        <TextField
+                            value={this.state.newInstallationId || ""}
+                            label="Installation id"
+                            type="number"
+                            onChange={(evt) => this.setState({ newInstallationId: Number.parseInt(evt.target.value) })}
+                        />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button
+                            type="submit"
+                        >
+                            Submit
                     </Button>
-                </DialogActions>
+                    </DialogActions>
+                </form>
             </Dialog>
         </>
     }
@@ -233,7 +235,13 @@ export class InstallationsTable extends Component<Readonly<InstallationsTablePro
         }
     }
 
-    handleAddInstallationSubmitButtonClick = async () => {
+    handleAddInstallationFormSubmit = async (evt: FormEvent) => {
+        console.log('submit')
+        evt.preventDefault();
+        await this.addInstallation();
+    }
+
+    addInstallation = async () => {
         const { newInstallationId, user } = this.state;
         if (!newInstallationId || !user) {
             return;
