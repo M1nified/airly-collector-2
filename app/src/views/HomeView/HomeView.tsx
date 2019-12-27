@@ -189,7 +189,6 @@ export class HomeView extends Component<HomeViewProps, HomeViewState>{
                         <SignInWithGoogleButton />
                     </Typography>
                 </>
-                break;
 
             case 1:
                 return <>
@@ -221,12 +220,10 @@ export class HomeView extends Component<HomeViewProps, HomeViewState>{
                         </Box>
                     </form>
                 </>
-                break;
 
             default:
                 return <>
                 </>
-                break;
         }
     }
 

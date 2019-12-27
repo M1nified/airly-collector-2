@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Redirect, Route, Switch } from 'react-router-dom';
+import { BrowserRouter, Route, Switch } from 'react-router-dom';
 import './App.css';
 import { HomeView } from './views/HomeView/HomeView';
 import { InstallationView } from './views/InstallationView/InstallationView';

@@ -234,7 +234,7 @@ export class InstallationsTable extends Component<Readonly<InstallationsTablePro
     }
 
     handleAddInstallationSubmitButtonClick = async () => {
-        const { newInstallationId, userInstallationRefs, user } = this.state;
+        const { newInstallationId, user } = this.state;
         if (!newInstallationId || !user) {
             return;
         }
